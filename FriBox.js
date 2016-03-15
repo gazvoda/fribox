@@ -22,10 +22,17 @@ var streznik = http.createServer(function(zahteva, odgovor) {
        posredujStaticnoVsebino(odgovor, dataDir + zahteva.url.replace("/prenesi", ""), "application/octet-stream");
    } else if (zahteva.url == "/nalozi") {
        naloziDatoteko(zahteva, odgovor);
-   } else {
+   } else if (zahteva.url.startsWith("/poglej")) {
+       posredujStaticnoVsebino(odgovor, dataDir + zahteva.url.replace("/poglej", ""), "");
+    } else {
        posredujStaticnoVsebino(odgovor, './public' + zahteva.url, "");
    }
 });
+
+streznik.listen(process.env.PORT, function() {
+    console.log("Strežnik zagnan");
+});
+
 
 function posredujOsnovnoStran(odgovor) {
     posredujStaticnoVsebino(odgovor, './public/fribox.html', "");
@@ -37,12 +44,14 @@ function posredujStaticnoVsebino(odgovor, absolutnaPotDoDatoteke, mimeType) {
                 fs.readFile(absolutnaPotDoDatoteke, function(napaka, datotekaVsebina) {
                     if (napaka) {
                         //Posreduj napako
+                        posredujNapako404(odgovor);
                     } else {
                         posredujDatoteko(odgovor, absolutnaPotDoDatoteke, datotekaVsebina, mimeType);
                     }
                 })
             } else {
                 //Posreduj napako
+                posredujNapako404(odgovor);
             }
         })
 }
@@ -62,6 +71,7 @@ function posredujSeznamDatotek(odgovor) {
     fs.readdir(dataDir, function(napaka, datoteke) {
         if (napaka) {
             //Posreduj napako
+            posredujNapako500(odgovor);
         } else {
             var rezultat = [];
             for (var i=0; i<datoteke.length; i++) {
@@ -74,6 +84,10 @@ function posredujSeznamDatotek(odgovor) {
             odgovor.end();      
         }
     })
+}
+
+function izbrisiDatoteko() {
+    
 }
 
 function naloziDatoteko(zahteva, odgovor) {
@@ -89,9 +103,22 @@ function naloziDatoteko(zahteva, odgovor) {
         fs.copy(zacasnaPot, dataDir + datoteka, function(napaka) {  
             if (napaka) {
                 //Posreduj napako
+                posredujNapako404(odgovor);
             } else {
                 posredujOsnovnoStran(odgovor);        
             }
         });
     });
+}
+
+function posredujNapako500(odgovor) {
+    odgovor.writeHead(500, {'Content-Type': 'text/plain'});
+    odgovor.write('Napaka 500: Prišlo je do napake strežnika.')
+    odgovor.end();
+}
+
+function posredujNapako404(odgovor) {
+    odgovor.writeHead(404, {'Content-Type': 'text/plain'});
+    odgovor.write('Napaka 404: Vira ni mogoče najti!');
+    odgovor.end();
 }
